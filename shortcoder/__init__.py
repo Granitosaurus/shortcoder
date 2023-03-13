@@ -1,4 +1,4 @@
-from shortcoder.shortcodes import PargShortcode, KwargShortcode
+from shortcoder.shortcodes import PositionalShortcode, KeywordShortcode
 from shortcoder.manager import Shortcoder
 
-__all__ = ["Shortcoder", "PargShortcode", "KwargShortcode"]
+__all__ = ["Shortcoder", "PositionalShortcode", "KeywordShortcode"]

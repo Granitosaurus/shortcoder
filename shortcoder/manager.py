@@ -1,8 +1,14 @@
 import re
 import shlex
 from typing import List, Dict
-from shortcoder.exceptions import DuplicateShortcode, NoShortcodesRegistered, UnknownShortcode, UnknownShortcodeKey
-from shortcoder.shortcodes import Shortcode, KwargShortcode, PargShortcode
+from shortcoder.exceptions import (
+    DuplicateShortcode,
+    InvalidKeywords,
+    ExtraParameters,
+    NoShortcodesRegistered,
+    UnknownShortcode,
+)
+from shortcoder.shortcodes.base import Shortcode, KeywordShortcode, PositionalShortcode
 
 
 class Shortcoder:
@@ -88,16 +94,30 @@ class Shortcoder:
                 handler = self.shortcodes[name]
             except KeyError:
                 raise UnknownShortcode(name, match.group())
-            if isinstance(handler, PargShortcode):
-                return handler.convert(pargs, context=context)
-            elif isinstance(handler, KwargShortcode):
-                if handler.keys:
-                    for key in kwargs:
-                        if key not in handler.keys:
-                            raise UnknownShortcodeKey(f"{handler.name} shortcode got unknown key {key}", args)
-                return handler.convert(kwargs, context=context)
+            if isinstance(handler, PositionalShortcode):
+                if len(pargs) > len(handler.inputs):
+                    raise ExtraParameters(
+                        "shortcode {name} got {count} parameters when {exp} expected ".format(
+                            name=name,
+                            count=len(pargs),
+                            exp=len(handler.inputs),
+                        )
+                    )
+                return handler._convert(pargs, context=context)
+            elif isinstance(handler, KeywordShortcode):
+                invalid = [key for key in kwargs if key not in handler.inputs]
+                if invalid:
+                    raise InvalidKeywords(
+                        "shortcode {name} got unknown keys {keys}, allowed: {inputs}".format(
+                            name=name,
+                            keys=invalid,
+                            inputs=handler.inputs,
+                        )
+                    )
+                return handler._convert(kwargs, context=context)
 
-        return self.re_shcode.sub(convert, text)
+        result = self.re_shcode.sub(convert, text)
+        return result
 
     def reverse(self, text: str) -> str:
         """

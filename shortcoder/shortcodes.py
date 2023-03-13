@@ -1,9 +1,9 @@
 """
 Contains base shortcode types
 """
-import shlex
 from typing import Dict, List, Optional, Union
 from shortcoder.exceptions import ShotcodeNotReversible
+from shortcoder.utils import quote_values
 
 
 class Shortcode:
@@ -15,27 +15,17 @@ class Shortcode:
         """
         raise ShotcodeNotReversible("Reverse Functionality Not Implemented")
 
-    def _quote_values(self, values: Union[Dict[str, str], List[str]]):
-        """
-        quote kwarg or arg values if they need to be quoted, i.e. contain a space in them
-        foo bar -> "foo bar"
-        foo -> "foo"
-        """
-        if isinstance(values, Dict):
-            return {k: f'"{v}"' if (v and len(shlex.split(v)) > 1) else v for k, v in values.items()}
-        return [f'"{v}"' if (v and len(shlex.split(v)) > 1) else v for v in values]
-
     def _rejoin(self, values: Union[Dict[str, str], List[str]]):
         """
         rejoin values to shortcode
         """
-        values = self._quote_values(values)
+        values = quote_values(values)
         if isinstance(values, Dict):
             return f"[%{self.name} " + " ".join([f"{key}={value}" for key, value in values.items() if value]) + " %]"
-        return f"[%{self.name} " + " ".join(values) + " %]"
+        return f"[%{self.name} " + " ".join(values).strip() + " %]"
 
 
-class KwargShortcode(Shortcode):
+class KeywordShortcode(Shortcode):
     name = NotImplemented
     keys = tuple()
 
@@ -43,7 +33,7 @@ class KwargShortcode(Shortcode):
         pass
 
 
-class PargShortcode(Shortcode):
+class PositionalShortcode(Shortcode):
     name = NotImplemented
 
     def convert(self, args: List[str], context: Optional[Dict] = None):

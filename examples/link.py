@@ -1,11 +1,11 @@
 import re
 from typing import Dict, Optional
 from urllib.parse import urljoin
-from shortcoder.shortcodes import KwargShortcode
+from shortcoder.shortcodes import KeywordShortcode
 from parsel import Selector
 
 
-class LinkShortcode(KwargShortcode):
+class LinkShortcode(KeywordShortcode):
     """
     html image shortcode:
     [%url href="foo.jpg" text="bar"%]

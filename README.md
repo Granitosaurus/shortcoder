@@ -1,6 +1,6 @@
 # Shortcoder
 
-Bi-directional parser for wordpress style shortcodes. 
+Bi-directional parser for wordpress-style shortcodes. 
 
 This tool is intended to be used with static site generators by providing a convenient way to insert complex HTML via short templates.
 
@@ -27,14 +27,16 @@ or positional arg shortcodes:
 
 ```python
 from typing import List, Dict
-from shortcoder import PargShortcode, Shortcoder
+from shortcoder import PositionalShortcode, Shortcoder
 
 
-class LinkShortcode(PargShortcode):
-    name = "link"
+class LinkShortcode(PositionalShortcode):
 
     def convert(self, args: List[str], context: Dict):
         return '<a href="{}">{}</a>'.format(*args)
+    
+    def reverse(self, text):
+        return self._rejoin()
 
 
 shortcoder = Shortcoder([LinkShortcode()])
