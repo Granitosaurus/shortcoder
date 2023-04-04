@@ -119,7 +119,7 @@ class TestPargConverting:
         # all parameters
         assert (
             self.sh.parse("[%url foo.jpg %]")
-            == '<a rel="noopener noreferrer" target="_blank" href="foo.jpg" class="shortcode-url"/>'
+            == '<a rel="noopener noreferrer" target="_blank" href="foo.jpg" class="shortcode-url"></a>'
         )
 
     def test_extra_parameters(self):

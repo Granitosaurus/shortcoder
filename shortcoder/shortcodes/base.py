@@ -70,6 +70,7 @@ class PositionalShortcode(_Shortcode):
         super().__init__(name, inputs)
 
     def _make_shortcode(self, values: Dict[str, str]):
+        """turn shortcode values into shortcode string"""
         values = quote_values(values)
         return f"[%{self.name} " + " ".join(values.values()).strip() + " %]"
 
