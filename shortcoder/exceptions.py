@@ -20,3 +20,7 @@ class NoShortcodesRegistered(BaseException):
 
 class ShotcodeNotReversible(BaseException):
     """raised when shortcode has no reversibility implemented and is being reversed by the manager"""
+
+
+class RenderingError(BaseException):
+    """raised when shortcode rendering fails"""

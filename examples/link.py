@@ -51,7 +51,7 @@ class LinkShortcode(KeywordShortcode):
                 data["rel"] = None
             if data["text"] == data["href"]:
                 data["text"] = None
-            return self._rejoin(data)
+            return self._make_shortcode(data)
 
         return self.re_reverse.sub(convert, text)
 

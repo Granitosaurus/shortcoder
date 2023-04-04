@@ -1,10 +1,13 @@
 import re
-from typing import List, Dict, Optional
-from shortcoder.manager import Shortcoder
-from shortcoder.shortcodes import KeywordShortcode, PositionalShortcode
-from shortcoder.exceptions import UnknownShortcode, NoShortcodesRegistered, DuplicateShortcode 
+from typing import Dict, List, Optional
+
 import pytest
 from lxml import etree
+
+from shortcoder.exceptions import DuplicateShortcode, NoShortcodesRegistered, UnknownShortcode
+from shortcoder.manager import Shortcoder
+from shortcoder.shortcodes import KeywordShortcode, PositionalShortcode
+from shortcoder.shortcodes.base import Input
 
 
 class PositionalLink(PositionalShortcode):
@@ -16,7 +19,7 @@ class PositionalLink(PositionalShortcode):
     def reverse(self, text: str) -> str:
         def convert(match: re.Match):
             node = etree.fromstring(match.group())
-            return self._rejoin([node.get('href'), node.text])
+            return self._make_shortcode([node.get("href"), node.text])
 
         return self.re_reverse.sub(convert, text)
 
@@ -30,36 +33,57 @@ class KeywordLink(KeywordShortcode):
     def reverse(self, text: str) -> str:
         def convert(match: re.Match):
             node = etree.fromstring(match.group())
-            values = {"url": node.get('href'), "text": node.text}
-            return self._rejoin(values)
+            values = {"url": node.get("href"), "text": node.text}
+            return self._make_shortcode(values)
 
         return self.re_reverse.sub(convert, text)
 
-positional_link = PositionalLink("link", inputs=["url", "text"])
-keyword_link = KeywordLink("link", inputs={"url":"", "text":"default"})
 
-def test_keyword_shortcode():
-    sh = Shortcoder([keyword_link])
-    assert sh.parse("[%link url=one text=two%]") == '<a href="one">two</a>'
-    assert sh.parse("[%link text=two url=one%]") == '<a href="one">two</a>'
-    assert sh.parse("""[%link text="two plus" url=one%]""") == '<a href="one">two plus</a>'
-    assert sh.parse("""[%link url="one" text="two"%]""") == '<a href="one">two</a>'
 
-    # quotes need to be quoted
-    assert sh.parse("""[%link url="one's" text=two%]""") == """<a href="one's">two</a>"""
-    with pytest.raises(ValueError, match="No closing quotation"):
-        sh.parse("[%link url=one's text=two%]") == '<a href="one">two</a>'
 
-    # reversing
-    assert sh.reverse('<a href="one">two</a>') == """[%link url=one text=two %]"""
-    # check quoting
-    assert sh.reverse("""<a href="one">two's</a>""") == """[%link url=one text="two's" %]"""
-    assert sh.reverse("""<a href="one with space">two's</a>""") == """[%link url="one with space" text="two's" %]"""
-    assert sh.reverse("""<a href="one">two"s</a>""") == """[%link url=one text='two"s' %]"""
-    assert sh.reverse("""<a href="one's">two's</a>""") == """[%link url="one's" text="two's" %]"""
+class TestConvert:
+    def setup_method(self) -> None:
+        keyword_link = KeywordLink("link", inputs=[Input("url"), Input("text")])
+        self.sh = Shortcoder([keyword_link])
+
+    def test_keyword_shortcode_order(self):
+        assert self.sh.parse("[%link url=one text=two%]") == '<a href="one">two</a>'
+        assert self.sh.parse("[%link text=two url=one%]") == '<a href="one">two</a>'
+
+    def test_keyword_shortcode_quotes(self):
+        assert self.sh.parse("""[%link text="two plus" url=one%]""") == '<a href="one">two plus</a>'
+        assert self.sh.parse("""[%link url="one" text="two"%]""") == '<a href="one">two</a>'
+
+    def test_quoting(self):
+        # quotes need to be quoted
+        assert self.sh.parse("""[%link url="one's" text=two%]""") == """<a href="one's">two</a>"""
+        with pytest.raises(ValueError, match="No closing quotation"):
+            self.sh.parse("[%link url=one's text=two%]") == '<a href="one">two</a>'
+
+
+class TestReverse:
+    def setup_method(self) -> None:
+        keyword_link = KeywordLink("link", inputs=[Input("url"), Input("text")])
+        self.sh = Shortcoder([keyword_link])
+
+    def test_success(self):
+        # reversing
+        assert self.sh.reverse('<a href="one">two</a>') == """[%link url=one text=two %]"""
+
+    def test_quotes(self):
+        # check quoting
+        assert self.sh.reverse("""<a href="one">two's</a>""") == """[%link url=one text="two's" %]"""
+        assert (
+            self.sh.reverse("""<a href="one with space">two's</a>""")
+            == """[%link url="one with space" text="two's" %]"""
+        )
+        assert self.sh.reverse("""<a href="one">two"s</a>""") == """[%link url=one text='two"s' %]"""
+        assert self.sh.reverse("""<a href="one's">two's</a>""") == """[%link url="one's" text="two's" %]"""
 
 
 def test_positional_shortcode():
+
+    positional_link = PositionalLink("link", inputs=[Input("url"), Input("text")])
     sh = Shortcoder([positional_link])
     assert sh.parse("[%link one two%]") == '<a href="one">two</a>'
 
@@ -87,10 +111,10 @@ def test_positional_shortcode():
 
 
 def test_manager_unknown_shortcode():
+    positional_link = PositionalLink("link", inputs=[Input("url"), Input("text")])
     sh = Shortcoder([positional_link])
     with pytest.raises(UnknownShortcode):
         assert sh.parse("[%linkz one two %]")
-
 
 
 def test_manager_noshortcodes_registered():
@@ -100,5 +124,8 @@ def test_manager_noshortcodes_registered():
 
 
 def test_manager_duplicated_registered():
+
+    positional_link = PositionalLink("link", inputs=[Input("url"), Input("text")])
+    positional_link2 = PositionalLink("link", inputs=[Input("url"), Input("text")])
     with pytest.raises(DuplicateShortcode):
-        Shortcoder([positional_link, keyword_link])
+        Shortcoder([positional_link, positional_link2])

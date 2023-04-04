@@ -1,6 +1,9 @@
 import re
-from typing import Dict, List, Optional
-from shortcoder.shortcodes.base import PositionalShortcode, KeywordShortcode
+from itertools import zip_longest
+from typing import Callable, Dict, List, Optional
+
+from shortcoder.exceptions import RenderingError
+from shortcoder.shortcodes.base import Input, KeywordShortcode, PositionalShortcode
 
 try:
     from lxml import etree
@@ -8,64 +11,64 @@ except ImportError:
     etree = None
 
 
-class HtmlPargShortcode(PositionalShortcode):
-    def __init__(self, name, inputs: List[str], rootname):
-        super().__init__(name=name, inputs=inputs)
-        self.rootname = rootname
-        self.re_reverse = re.compile(
-            rf"<{self.rootname}\b[^>]*>(.*?)</{self.rootname}>", flags=re.IGNORECASE | re.DOTALL
-        )
+class HTMLMixin:
+    re_reverse = re.compile(r"(<.*?\b[^>]*>.*?</.*?>)", flags=re.IGNORECASE | re.DOTALL)
+
+    def __init__(self, name, inputs: List[Input], template: Callable | str, class_: Optional[str] = None):
+        super().__init__(name, inputs)
         if not etree:
             raise ImportError("lxml package is required for HtmlShortcode; try: pip install lxml")
-
-    def convert(self, args: List[str], context: Optional[Dict] = None):
-        inputs = {k: args[i] for i, k in enumerate(self.inputs)}
-        return etree.tostring(self.inputs_to_element(inputs), encoding="unicode")
-
-    def inputs_to_element(self, inputs: Dict[str, str]) -> etree.Element:
-        """create html element from input keywords"""
-        return etree.fromstring("<{root}>{text}</{root}>".format(root=self.rootname, **inputs))
+        if isinstance(template, str):
+            self.template = template.format
+        else:
+            self.template = template
+        self.class_ = class_ or f"shortcode-{name}"
 
     def reverse(self, text: str) -> str:
-        """returns img shortcode from"""
+        """Reverse text value to shortcode"""
 
         def convert(match: re.Match):
-            return self._rejoin(self.element_to_inputs(match.group()))
-
-        return self.re_reverse.sub(convert, text)
-
-    def element_to_inputs(self, html: str) -> List[str]:
-        """create input keywords from html element"""
-        raise NotImplementedError()
-
-
-class HtmlKwargShortcode(KeywordShortcode):
-    def __init__(self, name, inputs: Dict[str, str], rootname):
-        super().__init__(name=name, inputs=inputs)
-        if not etree:
-            raise ImportError("lxml package is required for HtmlShortcode; try: pip install lxml")
-        self.rootname = rootname
-        self.re_reverse = re.compile(
-            rf"(<{self.rootname}\b[^>]*>.*?</{self.rootname}>)", flags=re.IGNORECASE | re.DOTALL
-        )
-
-    def convert(self, kwargs: Dict[str, str], context: Optional[Dict] = None) -> str:
-        inputs = {k: kwargs.get(k, v) for k, v in self.inputs.items()}
-        return etree.tostring(self.inputs_to_element(inputs), encoding="unicode")
-
-    def inputs_to_element(self, inputs: Dict[str, str]) -> etree.Element:
-        """create html element from input keywords"""
-        return etree.fromstring("<{root}>{text}</{root}>".format(root=self.rootname, **inputs))
-
-    def reverse(self, text: str) -> str:
-        """returns img shortcode from"""
-
-        def convert(match: re.Match):
-            return self._rejoin(self.element_to_inputs(match.group()))
+            tree = etree.fromstring(match.group())
+            if self.class_ not in tree.get("class", "").split(" "):
+                return match.group()
+            inputs = {}
+            for inp in self.inputs:
+                inputs[inp.name] = tree.xpath(inp.xpath)[0] or ""
+            if inputs:
+                return self._make_shortcode(inputs)
+            return match.group()
 
         result = self.re_reverse.sub(convert, text)
         return result
 
-    def element_to_inputs(self, html: str) -> Dict[str, str]:
-        """create input keywords from html element"""
-        raise NotImplementedError()
+
+class HtmlPargShortcode(HTMLMixin, PositionalShortcode):
+    def convert(self, args: List[str], context: Optional[Dict] = None) -> str:
+        inputs = {k: v or "" for k, v in zip_longest(self.inputs, args)}
+        try:
+            html = self.template(**inputs)
+            tree = etree.fromstring(html)
+            _classes = tree.get("class", "").split(" ") + [self.class_]
+            tree.set("class", " ".join(_classes).strip())
+        except Exception as e:
+            raise RenderingError(f"Error rendering {self.name} shortcode: {e}", e)
+        return etree.tostring(tree, encoding="unicode")
+
+
+class HtmlKwargShortcode(HTMLMixin, KeywordShortcode):
+    def convert(self, kwargs: Dict[str, str], context: Optional[Dict] = None) -> str:
+        inputs = {}
+        for input in self.inputs:
+            value = kwargs.get(input.name, input.default)
+            if input.required and not value:
+                raise RenderingError(f"Missing required input {input.name} for {self.name} shortcode; {kwargs=}")
+            inputs[input.name] = value or ""
+        try:
+            html = self.template(**inputs)
+            # add shortcode class to root node
+            tree = etree.fromstring(html)
+            _classes = tree.get("class", "").split(" ") + [self.class_]
+            tree.set("class", " ".join(_classes).strip())
+        except Exception as e:
+            raise RenderingError(f"Error rendering {self.name} shortcode: {e}", e)
+        return etree.tostring(tree, encoding="unicode")

@@ -8,14 +8,14 @@ from shortcoder.exceptions import (
     NoShortcodesRegistered,
     UnknownShortcode,
 )
-from shortcoder.shortcodes.base import Shortcode, KeywordShortcode, PositionalShortcode
+from shortcoder.shortcodes.base import _Shortcode, KeywordShortcode, PositionalShortcode
 
 
 class Shortcoder:
     default_shortcodes = tuple()
     re_shcode = re.compile(r"\[%\s*(\S+)(.+?)%\]", re.DOTALL)
 
-    def __init__(self, shortcodes: List[Shortcode] = None, context: Dict = None) -> None:
+    def __init__(self, shortcodes: List[_Shortcode] = None, context: Dict = None) -> None:
         """
         Shortcode parser
 
@@ -31,7 +31,7 @@ class Shortcoder:
             self.register(shortcode)
         self.context = context or {}
 
-    def register(self, shortcode: Shortcode):
+    def register(self, shortcode: _Shortcode):
         """
         register a shortcode to the current parser object
 
@@ -103,9 +103,10 @@ class Shortcoder:
                             exp=len(handler.inputs),
                         )
                     )
-                return handler._convert(pargs, context=context)
+                return handler._convert_with_defaults(pargs, context=context)
             elif isinstance(handler, KeywordShortcode):
-                invalid = [key for key in kwargs if key not in handler.inputs]
+                _input_names = [i.name for i in handler.inputs]
+                invalid = [key for key in kwargs if key not in _input_names]
                 if invalid:
                     raise InvalidKeywords(
                         "shortcode {name} got unknown keys {keys}, allowed: {inputs}".format(
@@ -114,7 +115,7 @@ class Shortcoder:
                             inputs=handler.inputs,
                         )
                     )
-                return handler._convert(kwargs, context=context)
+                return handler._convert_with_defaults(kwargs, context=context)
 
         result = self.re_shcode.sub(convert, text)
         return result
