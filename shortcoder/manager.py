@@ -81,30 +81,30 @@ class Shortcoder:
 
         def convert(match: re.Match):
             name, args = match.groups()
-            args = shlex.split(args.strip())
-            pargs = []
-            kwargs = {}
-            for arg in args:
-                if "=" in arg:
-                    key, value = arg.split("=", 1)
-                    kwargs[key] = value
-                else:
-                    pargs.append(arg)
             try:
                 handler = self.shortcodes[name]
             except KeyError:
                 raise UnknownShortcode(name, match.group())
+            args = shlex.split(args.strip())
             if isinstance(handler, PositionalShortcode):
-                if len(pargs) > len(handler.inputs):
-                    raise ExtraParameters(
-                        "shortcode {name} got {count} parameters when {exp} expected ".format(
-                            name=name,
-                            count=len(pargs),
-                            exp=len(handler.inputs),
+                kwargs = {}
+                for i, arg in enumerate(args):
+                    try:
+                        kwargs[handler.inputs[i].name] = arg
+                    except IndexError:
+                        raise ExtraParameters(
+                            "shortcode {name} got {count} parameters when {exp} expected ".format(
+                                name=name,
+                                count=len(args),
+                                exp=len(handler.inputs),
+                            )
                         )
-                    )
-                return handler._convert_with_defaults(pargs, context=context)
+                return handler._convert_with_defaults(kwargs, context=context)
             elif isinstance(handler, KeywordShortcode):
+                kwargs = {}
+                for i, arg in enumerate(args):
+                    key, value = arg.split("=", 1)
+                    kwargs[key] = value
                 _input_names = [i.name for i in handler.inputs]
                 invalid = [key for key in kwargs if key not in _input_names]
                 if invalid:

@@ -8,6 +8,12 @@ license = "GPLv3+"
 [tool.poetry.dependencies]
 python = "^3.7"
 
+[tool.poetry.group.html]
+optional = true
+
+[tool.poetry.group.html.dependencies]
+lxml = "^4.9.2"
+
 [tool.poetry.group.dev.dependencies]
 lxml = "^4.9.2"
 ruff = "^0.0.254"

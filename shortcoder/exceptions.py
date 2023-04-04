@@ -6,6 +6,10 @@ class ExtraParameters(BaseException):
     """raised when shortcode is passed too many positional parameters"""
 
 
+class InvalidInput(BaseException):
+    """raised when shortcode is created with invalid inputs"""
+
+
 class InvalidKeywords(BaseException):
     """raised when shortcode is passed invalid keywords"""
 

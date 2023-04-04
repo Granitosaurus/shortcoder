@@ -2,7 +2,7 @@
 Contains base shortcode types
 """
 from typing import Dict, List, Optional, Union
-from shortcoder.exceptions import ShotcodeNotReversible
+from shortcoder.exceptions import InvalidInput, ShotcodeNotReversible
 from shortcoder.utils import quote_values
 
 
@@ -61,14 +61,21 @@ class KeywordShortcode(_Shortcode):
 class PositionalShortcode(_Shortcode):
     """Positional argument shortcode, e.g. [% shortcode value1 value2 %]"""
 
+    def __init__(self, name: str, inputs: List[Input]) -> None:
+        for input in inputs:
+            if input.default:
+                raise InvalidInput(
+                    f"Positional shortcodes do not support default values: {input.name} has default {input.default}"
+                )
+        super().__init__(name, inputs)
+
     def _make_shortcode(self, values: Dict[str, str]):
         values = quote_values(values)
         return f"[%{self.name} " + " ".join(values.values()).strip() + " %]"
 
-    def _convert_with_defaults(self, args: List[str], context: Optional[Dict] = None):
-        pad_length = len(self.inputs) - len(args)
-        args = args + [""] * pad_length
-        return self.convert(args, context)
+    def _convert_with_defaults(self, kwargs: Dict[str, str], context: Optional[Dict] = None):
+        inputs = {input.name: kwargs.get(input.name, input.default) or "" for input in self.inputs}
+        return self.convert(inputs, context)
 
     def convert(self, args: List[str], context: Optional[Dict] = None):
         pass

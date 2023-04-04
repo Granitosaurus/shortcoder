@@ -1,52 +1,46 @@
 # Shortcoder
 
-Bi-directional parser for wordpress-style shortcodes. 
+Bi-directional parser for wordpress-style shortcodes:
+```
+[%link http://example.com "my link" %]
+🔃
+<a href="http://example.com">my link</a>
+```
 
 This tool is intended to be used with static site generators by providing a convenient way to insert complex HTML via short templates.
 
-For example we can create shortcodes like:
+For example, embedding Youtube videos in markdown can take a lot of space:
 
-```markdown
-We can use key value based shortcodes:
-[%url href=one.jpg text="my link" %]
-
-or positional arg shortcodes:
-[%url one.jpg "my link" %]
+```html
+<iframe width="560" height="315" src="https://www.youtube.com/embed/2fmCcfAb4k4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen data-id="2fmCcfAb4k4"></iframe>
 ```
 
-that would be converted to:
-```
-We can use key value based shortcodes:
-<a src="https://mydomain.com/one.jpg" rel="noreferrer noopener">my link</a>
-
-or positional arg shortcodes:
-<a src="https://mydomain.com/one.jpg" rel="noreferrer noopener">my link</a>
-```
-
-## Example Usage
+Using Shortcoder this can be turned into a shortcode `[%yt 2fmCcfAb4k4 %]` which can be easily reversed back to the original HTML:
 
 ```python
-from typing import List, Dict
-from shortcoder import PositionalShortcode, Shortcoder
+from shortcoder import Shortcoder, HtmlPargShortcode, Input
 
+# define a shortcode that will embed a youtube video
+yt_embed = HtmlPargShortcode(
+    "yt",
+    inputs=[Input("id", xpath="@data-id")], 
+    template="""<iframe width="560" height="315" data-id="{id}" src="https://www.youtube.com/embed/{id}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>"""
+)
 
-class LinkShortcode(PositionalShortcode):
-
-    def convert(self, args: List[str], context: Dict):
-        return '<a href="{}">{}</a>'.format(*args)
-    
-    def reverse(self, text):
-        return self._rejoin()
-
-
-shortcoder = Shortcoder([LinkShortcode()])
-input = """Follow me on [%link https://mastodon.technology/@Wraptile mastodon! %]"""
-print(shortcoder.parse(input))
-# will print:
-# Follow me on <mastodon! href="https://mastodon.technology/@Wraptile">mastodon!</a>
+# use shortcoder to parse shortcodes in text:
+sh = Shortcoder([yt_embed])
+result = sh.parse('Check out my youtube video\n[%yt 2fmCcfAb4k4 %]')
+print(result)
+"""
+Check out my youtube video
+<iframe width="560" height="315" data-id="2fmCcfAb4k4" src="https://www.youtube.com/embed/2fmCcfAb4k4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen class="shortcode-yt"></iframe>
+"""
+print(sh.reverse(result))
+"""
+Check out my youtube video
+[%yt 2fmCcfAb4k4 %]
+"""
 ```
-
-See example shortcodes over at [/examples](./examples/link.py)
 
 ## Credits and Similar Packages
 

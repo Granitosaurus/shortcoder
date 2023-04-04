@@ -1,7 +1,7 @@
 from textwrap import dedent
 import pytest
 from shortcoder.manager import Shortcoder
-from shortcoder.exceptions import InvalidKeywords, ExtraParameters, RenderingError
+from shortcoder.exceptions import InvalidInput, InvalidKeywords, ExtraParameters, RenderingError
 from shortcoder.shortcodes.base import Input
 from shortcoder.shortcodes.html import HtmlKwargShortcode, HtmlPargShortcode
 
@@ -108,6 +108,7 @@ url_pos_shortcode = HtmlPargShortcode(
 class TestPargConverting:
     def setup_method(self) -> None:
         self.sh = Shortcoder([url_pos_shortcode])
+    
 
     def test_success(self):
         # 1 parameter
@@ -124,6 +125,11 @@ class TestPargConverting:
     def test_extra_parameters(self):
         with pytest.raises(ExtraParameters, match="""shortcode url got 3 parameters when 2 expected"""):
             self.sh.parse("[%url foo.jpg bar gaz %]")
+
+    def test_defaults_not_allowed(self):
+        with pytest.raises(InvalidInput, match="Positional shortcodes do not support default values"):
+            sh = Shortcoder([HtmlPargShortcode("url", inputs=[Input("href", xpath="@href", default="foobar")], template="")])
+
 
 
 class TestPargReverse:
