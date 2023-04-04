@@ -42,6 +42,8 @@ Check out my youtube video
 """
 ```
 
+For more, see the [examples](/examples) directory.
+
 ## Credits and Similar Packages
 
 Shortcoder is inspired by [shortcodes](https://github.com/dmulholl/shortcodes) package with few key differences:
