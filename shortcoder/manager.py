@@ -99,7 +99,7 @@ class Shortcoder:
                                 exp=len(handler.inputs),
                             )
                         )
-                return handler._convert_with_defaults(kwargs, context=context)
+                return handler.convert(kwargs, context=context)
             elif isinstance(handler, KeywordShortcode):
                 kwargs = {}
                 for i, arg in enumerate(args):
@@ -115,10 +115,26 @@ class Shortcoder:
                             inputs=handler.inputs,
                         )
                     )
-                return handler._convert_with_defaults(kwargs, context=context)
+                return handler.convert(kwargs, context=context)
 
         result = self.re_shcode.sub(convert, text)
         return result
+    
+    def find_shortcodes(self, text: str) -> List[str]:
+        """
+        Find all shortcodes in text
+
+        Parameters
+        ----------
+        text
+            text to search
+
+        Returns
+        -------
+        List[str]
+            list of shortcodes found
+        """
+        return self.re_shcode.findall(text)
 
     def reverse(self, text: str) -> str:
         """

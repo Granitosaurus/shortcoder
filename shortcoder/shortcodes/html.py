@@ -1,7 +1,7 @@
 import re
 from typing import Callable, Dict, List, Optional
 
-from shortcoder.exceptions import RenderingError
+from shortcoder.exceptions import RenderingError, ShortcodeNotReversible
 from shortcoder.shortcodes.base import Input, KeywordShortcode, PositionalShortcode
 
 try:
@@ -11,7 +11,7 @@ except ImportError:
 
 
 class HTMLMixin:
-    re_reverse = re.compile(r"(<.*?\b[^>]*>.*?</.*?>)", flags=re.IGNORECASE | re.DOTALL)
+    re_reverse = re.compile(r"(<[^/]*?\b[^>]*>.*?</.*?>)", flags=re.IGNORECASE | re.DOTALL)
 
     def __init__(self, name, inputs: List[Input], template: Callable | str, class_: Optional[str] = None):
         super().__init__(name, inputs)
@@ -23,18 +23,34 @@ class HTMLMixin:
             self.template = template
         self.class_ = class_ or f"shortcode-{name}"
 
+    def _handle_lxml_errors(self, exception: Exception):
+        if isinstance(exception, ValueError):
+            if "Unicode strings with encoding declartion are not supported" in ''.join(exception.args):
+                return
+        return exception
+
     def reverse(self, text: str) -> str:
         """Reverse text value to shortcode"""
 
         def convert(match: re.Match):
-            tree = html.fromstring(match.group())
+            if not match.group():
+                return match.group()
+            try:
+                tree = html.fromstring(match.group())
+            except Exception as e:
+                if new_exception:=self._handle_lxml_errors(e):
+                    raise new_exception
+                else:
+                    return match.group()
             if self.class_ not in tree.get("class", "").split(" "):
                 return match.group()
-            inputs = {}
+            shortcode_kwargs = {}
             for inp in self.inputs:
-                inputs[inp.name] = tree.xpath(inp.xpath)[0] or ""
-            if inputs:
-                return self._make_shortcode(inputs)
+                if not inp.xpath:
+                    raise ShortcodeNotReversible(f"shortcode {self.name} input {inp} is missing reversing instructions {inp.xpath=}")
+                shortcode_kwargs[inp.name] = tree.xpath(inp.xpath)[0] or ""
+            if shortcode_kwargs:
+                return self._make_shortcode(shortcode_kwargs)
             return match.group()
 
         result = self.re_reverse.sub(convert, text)
@@ -44,11 +60,11 @@ class HTMLMixin:
         inputs = {}
         for input in self.inputs:
             value = kwargs.get(input.name, input.default)
-            if input.required and not value:
+            if value is None:
                 raise RenderingError(f"Missing required input {input.name} for {self.name} shortcode; {kwargs=}")
             inputs[input.name] = value or ""
         try:
-            html_text = self.template(**inputs)
+            html_text = self.template(**inputs, context=context, shortcode=self)
             tree = html.fromstring(html_text)
             _classes = tree.get("class", "").split(" ") + [self.class_]
             tree.set("class", " ".join(_classes).strip())

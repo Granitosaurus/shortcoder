@@ -22,7 +22,7 @@ class NoShortcodesRegistered(BaseException):
     """raised when shortcode manager has no shortcodes registered and is requested to parse text"""
 
 
-class ShotcodeNotReversible(BaseException):
+class ShortcodeNotReversible(BaseException):
     """raised when shortcode has no reversibility implemented and is being reversed by the manager"""
 
 

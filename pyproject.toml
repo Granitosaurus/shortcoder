@@ -3,7 +3,15 @@ name = "shortcoder"
 version = "0.3.0"
 description = "bi-direction shortcode renderer"
 authors = ["granitosaurus <bernardas.alisauskas@pm.me>"]
-license = "GPLv3+"
+license = "GPL-3.0-or-later"
+readme = "README.md"
+homepage = "https://github.com/Granitosaurus/shortcoder"
+repository = "https://github.com/Granitosaurus/shortcoder"
+documentation = "https://github.com/Granitosaurus/shortcoder"
+keywords = ["parsing", "shortcodes", "shortcode", "html"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+]   
 
 [tool.poetry.dependencies]
 python = "^3.7"
